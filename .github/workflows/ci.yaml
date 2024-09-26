@@ -70,7 +70,7 @@ jobs:
 
       - name: Setup the required system configs Wazuh Indexer
         run: |
-          sudo snap install wazuh-indexer --channel=4/edge --devmode --revision=2
+          sudo snap install wazuh-indexer --channel=4/edge --dangerous --devmode --revision=2
           sudo snap connect wazuh-indexer:process-control
 
           sudo sysctl -w vm.swappiness=0
