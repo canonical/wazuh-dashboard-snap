@@ -219,7 +219,10 @@ jobs:
           fi
 
           echo "Snap defaults correctly applied as Exporter settings"
-
+      - name: Tmate debugging session (gh-hosted)
+        if: ${{ failure() }}
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 20
       - name: Test Logs slot
         run: |
           logs_slot_avail=$(sudo snap connections wazuh-dashboard | grep wazuh-dashboard:logs)
