@@ -67,6 +67,7 @@ environment:
   OPENSEARCH_DASHBOARDS_VARLOG: ${SNAP_COMMON}/var/log/wazuh-dashboard
   OPENSEARCH_DASHBOARDS_VARLIB: ${SNAP_COMMON}/var/lib/wazuh-dashboard
   OPENSEARCH_DASHBOARDS_TMPDIR: ${SNAP_COMMON}/usr/share/tmp
+  WAZUH_CONFIG_PATH: ${SNAP_DATA_CURRENT}/config
 
 
 apps:
@@ -80,7 +81,7 @@ apps:
       - network
       - network-bind
     environment:
-      WAZUH_CONFIG_PATH: ${SNAP_DATA_CURRENT}/config
+      WAZUH_CONFIG_PATH: ${WAZUH_CONFIG_PATH}
 
   kibana-exporter-daemon:
     daemon: simple
