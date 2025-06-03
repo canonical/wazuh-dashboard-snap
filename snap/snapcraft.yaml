@@ -1,7 +1,7 @@
 name: wazuh-dashboard
 base: core24
 
-version: '4.8.2'
+version: '4.11.0'
 
 summary: OpenSearch Dashboards with additional changes for easier use alongside Wazuh.
 description: |
@@ -16,12 +16,13 @@ confinement: strict
 platforms:
   amd64:
 
+
 package-repositories:
   - type: apt
     components: [main]
-    suites: [jammy]
-    key-id: 6676E3F1A76ADBE4488944BF7D1A96D4BF78C79E
-    url: https://ppa.launchpadcontent.net/data-platform/prometheus-kibana-exporter/ubuntu
+    suites: [noble]
+    key-id: 250888D21C2C3843BB4D5E35EB948C132E00C6DB
+    url: https://ppa.launchpadcontent.net/gabrielcocenza/prometheus-opensearch-dashboards-exporter/ubuntu
 
 system-usernames:
   snap_daemon: shared
@@ -69,6 +70,9 @@ environment:
   OPENSEARCH_DASHBOARDS_TMPDIR: ${SNAP_COMMON}/usr/share/tmp
   WAZUH_CONFIG_PATH: ${SNAP_DATA_CURRENT}/config
 
+  # include the dist-packages to be able to run the exporter
+  PYTHONPATH: "$SNAP/usr/lib/python3/dist-packages:$PYTHONPATH"
+
 
 apps:
   opensearch-dashboards-daemon:
@@ -83,8 +87,10 @@ apps:
     environment:
       WAZUH_CONFIG_PATH: ${WAZUH_CONFIG_PATH}
 
-  kibana-exporter-daemon:
+  exporter-daemon:
     daemon: simple
+    after:
+      - opensearch-dashboards-daemon
     install-mode: disable
     command: opt/opensearch-dashboards/start-exporter.sh
     restart-condition: always
@@ -102,7 +108,7 @@ parts:
     stage-packages:
       - util-linux
       - curl
-      - prometheus-kibana-exporter
+      - prometheus-opensearch-dashboards-exporter
 
   wrapper-scripts:
     plugin: nil
