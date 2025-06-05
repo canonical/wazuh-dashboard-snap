@@ -162,7 +162,7 @@ jobs:
           sudo snap run wazuh-indexer.security-init --tls-priv-key-admin-pass=admin1234
 
       - name: Download snap file for Wazuh Dashboard
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: wazuh-dashboard_snap_amd64
           path: .
