@@ -58,14 +58,14 @@ jobs:
       - name: Download snap file for OpenSearch Dashboards
         uses: actions/download-artifact@v4
         with:
-          name: opensearch-dashboards_snap_amd64
+          name: wazuh-dashboard_snap_amd64
           path: .
 
       - name: Install snap file for Opensearch Dashboards
         run: |
           version="$(yq .version < snap/snapcraft.yaml)"
 
-          sudo snap install opensearch-dashboards_${version}_amd64.snap --dangerous --jailmode
+          sudo snap install wazuh-dashboard_${version}_amd64.snap --dangerous --jailmode
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.30.0
