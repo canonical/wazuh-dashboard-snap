@@ -119,27 +119,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Upgrade snapd
-        run: |
-          sudo snap refresh snapd
-
       - name: Setup the required system configs Wazuh Indexer
         run: |
-          sudo snap install wazuh-indexer --channel=4.11/edge --revision=1
+          sudo snap install wazuh-indexer --channel=4.11/edge --revision=6
           sudo snap connect wazuh-indexer:process-control
 
           sudo sysctl -w vm.swappiness=0
           sudo sysctl -w vm.max_map_count=262144
           sudo sysctl -w net.ipv4.tcp_retries2=5
-
-      - name: Connect required interfaces for Wazuh Indexer
-        run: |
-          sudo snap connect wazuh-indexer:log-observe
-          sudo snap connect wazuh-indexer:mount-observe
-          sudo snap connect wazuh-indexer:process-control
-          sudo snap connect wazuh-indexer:system-observe
-          sudo snap connect wazuh-indexer:sys-fs-cgroup-service
-          sudo snap connect wazuh-indexer:shmem-perf-analyzer
 
       - name: Setup and Start Wazuh Indexer
         run: |
@@ -170,7 +157,6 @@ jobs:
       - name: Install snap file for Wazuh Dashboard
         run: |
           version="$(yq .version < snap/snapcraft.yaml)"
-          
           sudo snap install wazuh-dashboard_${version}_amd64.snap --dangerous --jailmode
 
       - name: Test Wazuh Dashboard
@@ -241,7 +227,7 @@ jobs:
 
           sudo snap set wazuh-dashboard scheme=https
           sudo snap restart wazuh-dashboard
-          sleep 10 
+          sleep 10
 
           # Wait until the service establishes
           metrics=$(curl ${URL} \
