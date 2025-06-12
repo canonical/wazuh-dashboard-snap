@@ -121,7 +121,7 @@ jobs:
 
       - name: Setup the required system configs Wazuh Indexer
         run: |
-          sudo snap install wazuh-indexer --channel=4.11/edge --revision=6
+          sudo snap install wazuh-indexer --channel=4.11/edge --revision=7
           sudo snap connect wazuh-indexer:process-control
           sudo snap connect wazuh-indexer:mount-observe   # required by wazuh
           sudo snap connect wazuh-indexer:system-observe  # required by wazuh
