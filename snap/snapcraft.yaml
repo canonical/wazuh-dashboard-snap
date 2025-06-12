@@ -144,10 +144,9 @@ parts:
     build-packages:
       - apt-transport-https
       - gnupg
-    stage-packages:
-      - wazuh-dashboard=4.11.0-1
     override-stage: |
       apt update; apt upgrade -y; apt autoremove --purge -y; apt clean -y
+      apt install -y wazuh-dashboard=4.11.0-1
       craftctl default
       sed -i -e 's/^\([^#].*\)/# \1/g' etc/wazuh-dashboard/opensearch_dashboards.yml
       cat <<EOT >> etc/wazuh-dashboard/opensearch_dashboards.yml
@@ -165,10 +164,10 @@ parts:
       EOT
     override-prime: |
       craftctl default
-      usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin install --allow-root anomalyDetectionDashboards
       chmod -R 755 usr/share/wazuh-dashboard
       find etc -type d -exec chmod +x {} \;
       chmod +r etc -R
-      find etc -type d -exec chmod +x {} \;
-      chmod +r etc -R
-
+      sed -ie "s|WAZUH_DATA_PLUGIN_PLATFORM_BASE_ABSOLUTE_PATH, 'wazuh'|'/var/snap/wazuh-dashboard/current/config', 'wazuh'|" /root/prime/usr/share/wazuh-dashboard/plugins/wazuhCore/common/constants.js
+      sed -ie "s|WAZUH_DATA_PLUGIN_PLATFORM_BASE_ABSOLUTE_PATH, 'wazuh'|'/var/snap/wazuh-dashboard/current/config', 'wazuh'|" /root/prime/usr/share/wazuh-dashboard/plugins/wazuh/common/constants.js
+      sed -ie 's|WAZUH_DATA_PLUGIN_PLATFORM_BASE_ABSOLUTE_PATH,"wazuh"|"/var/snap/wazuh-dashboard/current/config","wazuh"|' /root/prime/usr/share/wazuh-dashboard/plugins/wazuh/target/public/wazuh.plugin.js
+      sed -ie 's|WAZUH_DATA_PLUGIN_PLATFORM_BASE_ABSOLUTE_PATH,"wazuh"|"/var/snap/wazuh-dashboard/current/config","wazuh"|' /root/prime/usr/share/wazuh-dashboard/plugins/wazuhCore/target/public/wazuhCore.plugin.js
