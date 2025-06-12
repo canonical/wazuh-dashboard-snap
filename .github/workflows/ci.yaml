@@ -123,9 +123,11 @@ jobs:
         run: |
           sudo snap install wazuh-indexer --channel=4.11/edge --revision=7
           sudo snap connect wazuh-indexer:process-control
-          sudo snap connect wazuh-indexer:mount-observe   # required by wazuh
-          sudo snap connect wazuh-indexer:system-observe  # required by wazuh
-          sudo snap connect wazuh-indexer:process-control # required by wazuh
+          sudo snap connect wazuh-indexer:log-observe           # required by wazuh
+          sudo snap connect wazuh-indexer:mount-observe         # required by wazuh
+          sudo snap connect wazuh-indexer:system-observe        # required by wazuh
+          sudo snap connect wazuh-indexer:sys-fs-cgroup-service # required by wazuh
+          sudo snap connect wazuh-indexer:shmem-perf-analyzer   # required by wazuh
 
           sudo sysctl -w vm.swappiness=0
           sudo sysctl -w vm.max_map_count=262144
