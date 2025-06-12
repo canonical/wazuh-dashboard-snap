@@ -144,6 +144,8 @@ parts:
     build-packages:
       - apt-transport-https
       - gnupg
+    stage-packages:
+      - wazuh-dashboard=4.11.0-1
     override-stage: |
       apt update; apt upgrade -y; apt autoremove --purge -y; apt clean -y
       apt install -y wazuh-dashboard=4.11.0-1
