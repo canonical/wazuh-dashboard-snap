@@ -1,7 +1,7 @@
 name: wazuh-dashboard
 base: core24
 
-version: '4.8.2'
+version: '4.11.0'
 
 summary: OpenSearch Dashboards with additional changes for easier use alongside Wazuh.
 description: |
@@ -16,12 +16,19 @@ confinement: strict
 platforms:
   amd64:
 
+
 package-repositories:
   - type: apt
     components: [main]
-    suites: [jammy]
-    key-id: 6676E3F1A76ADBE4488944BF7D1A96D4BF78C79E
-    url: https://ppa.launchpadcontent.net/data-platform/prometheus-kibana-exporter/ubuntu
+    suites: [noble]
+    key-id: 250888D21C2C3843BB4D5E35EB948C132E00C6DB
+    url: https://ppa.launchpadcontent.net/gabrielcocenza/prometheus-opensearch-dashboards-exporter/ubuntu
+  - type: apt
+    components: [main]
+    suites: [stable]
+    key-id: 0DCFCA5547B19D2A6099506096B3EE5F29111145
+    key-server: https://packages.wazuh.com/key/GPG-KEY-WAZUH
+    url: https://packages.wazuh.com/4.x/apt/
 
 system-usernames:
   snap_daemon: shared
@@ -69,6 +76,9 @@ environment:
   OPENSEARCH_DASHBOARDS_TMPDIR: ${SNAP_COMMON}/usr/share/tmp
   WAZUH_CONFIG_PATH: ${SNAP_DATA_CURRENT}/config
 
+  # include the dist-packages to be able to run the exporter
+  PYTHONPATH: "$SNAP/usr/lib/python3/dist-packages:$PYTHONPATH"
+
 
 apps:
   opensearch-dashboards-daemon:
@@ -83,8 +93,10 @@ apps:
     environment:
       WAZUH_CONFIG_PATH: ${WAZUH_CONFIG_PATH}
 
-  kibana-exporter-daemon:
+  exporter-daemon:
     daemon: simple
+    after:
+      - opensearch-dashboards-daemon
     install-mode: disable
     command: opt/opensearch-dashboards/start-exporter.sh
     restart-condition: always
@@ -102,7 +114,7 @@ parts:
     stage-packages:
       - util-linux
       - curl
-      - prometheus-kibana-exporter
+      - prometheus-opensearch-dashboards-exporter
 
   wrapper-scripts:
     plugin: nil
@@ -128,12 +140,15 @@ parts:
       snap install node --channel=18/stable --classic
 
   wazuh-dashboard:
-    source: https://people.canonical.com/~arturoseijas/wazuh-dashboard_4.9.2-1_amd64.deb
-    plugin: dump
+    plugin: nil
     build-packages:
       - apt-transport-https
       - gnupg
+    stage-packages:
+      - wazuh-dashboard=4.11.0-1
     override-stage: |
+      apt update; apt upgrade -y; apt autoremove --purge -y; apt clean -y
+      apt install -y wazuh-dashboard=4.11.0-1
       craftctl default
       sed -i -e 's/^\([^#].*\)/# \1/g' etc/wazuh-dashboard/opensearch_dashboards.yml
       cat <<EOT >> etc/wazuh-dashboard/opensearch_dashboards.yml
@@ -151,10 +166,10 @@ parts:
       EOT
     override-prime: |
       craftctl default
-      usr/share/wazuh-dashboard/bin/opensearch-dashboards-plugin install --allow-root anomalyDetectionDashboards
       chmod -R 755 usr/share/wazuh-dashboard
       find etc -type d -exec chmod +x {} \;
       chmod +r etc -R
-      find etc -type d -exec chmod +x {} \;
-      chmod +r etc -R
-
+      sed -ie "s|WAZUH_DATA_PLUGIN_PLATFORM_BASE_ABSOLUTE_PATH, 'wazuh'|'/var/snap/wazuh-dashboard/current/config', 'wazuh'|" /root/prime/usr/share/wazuh-dashboard/plugins/wazuhCore/common/constants.js
+      sed -ie "s|WAZUH_DATA_PLUGIN_PLATFORM_BASE_ABSOLUTE_PATH, 'wazuh'|'/var/snap/wazuh-dashboard/current/config', 'wazuh'|" /root/prime/usr/share/wazuh-dashboard/plugins/wazuh/common/constants.js
+      sed -ie 's|WAZUH_DATA_PLUGIN_PLATFORM_BASE_ABSOLUTE_PATH,"wazuh"|"/var/snap/wazuh-dashboard/current/config","wazuh"|' /root/prime/usr/share/wazuh-dashboard/plugins/wazuh/target/public/wazuh.plugin.js
+      sed -ie 's|WAZUH_DATA_PLUGIN_PLATFORM_BASE_ABSOLUTE_PATH,"wazuh"|"/var/snap/wazuh-dashboard/current/config","wazuh"|' /root/prime/usr/share/wazuh-dashboard/plugins/wazuhCore/target/public/wazuhCore.plugin.js

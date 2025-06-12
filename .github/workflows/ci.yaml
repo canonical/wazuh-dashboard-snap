@@ -17,40 +17,95 @@ jobs:
       snap-file: ${{ steps.build-snap.outputs.snap }}
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Install required dependencies
-        run: |
-          sudo snap install yq
 
       - name: Upgrade linux deps
         run: |
           sudo apt-get update
-          
+
           # install security updates
           sudo apt-get -s dist-upgrade \
             | grep "^Inst" \
             | grep -i securi \
             | awk -F " " {'print $2'} \
             | xargs sudo apt-get install -y
-          
+
           sudo apt-get autoremove -y
           sudo apt-get clean -y
-          sudo snap refresh snapd
 
       - id: build-snap
         name: Build snap
         uses: snapcore/action-build@v1
-        with:
-          snapcraft-channel: 8.x/stable
 
       - name: Upload built snap job artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wazuh-dashboard_snap_amd64
           path: "wazuh-dashboard_*.snap"
+
+  scan:
+    name: Trivy scan and SBOM Generation
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download snap file for OpenSearch Dashboards
+        uses: actions/download-artifact@v4
+        with:
+          name: wazuh-dashboard_snap_amd64
+          path: .
+
+      - name: Install snap file for Opensearch Dashboards
+        run: |
+          version="$(yq .version < snap/snapcraft.yaml)"
+
+          sudo snap install wazuh-dashboard_${version}_amd64.snap --dangerous --jailmode
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          scan-type: "fs"
+          scan-ref: /snap/wazuh-dashboard/current/usr/share/wazuh-dashboard/
+          format: "sarif"
+          output: "trivy-results.sarif"
+          scanners: "vuln"
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-results.sarif"
+
+      - name: Run Trivy in GitHub SBOM mode and submit results to Dependency Graph
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          scan-type: "fs"
+          scan-ref: /snap/wazuh-dashboard/current/usr/share/wazuh-dashboard/
+          format: "spdx-json"
+          output: "dependency-results.sbom.json"
+          github-pat: ${{ secrets.GITHUB_TOKEN }}
+          severity: "MEDIUM,HIGH,CRITICAL"
+          scanners: "vuln"
+
+      - name: Upload trivy report as a Github artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results.sarif
+          path: "${{ github.workspace }}/trivy-results.sarif"
+          retention-days: 90
+
+      - name: Upload trivy report as a Github artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sbom-report
+          path: "${{ github.workspace }}/dependency-results.sbom.json"
+          retention-days: 90
 
   test:
     name: Test Snap
@@ -60,31 +115,23 @@ jobs:
       - build
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Upgrade snapd
-        run: |
-          sudo snap refresh snapd
-
       - name: Setup the required system configs Wazuh Indexer
         run: |
-          sudo snap install wazuh-indexer --channel=4/edge --revision=3
+          sudo snap install wazuh-indexer --channel=4.11/edge --revision=7
           sudo snap connect wazuh-indexer:process-control
+          sudo snap connect wazuh-indexer:log-observe           # required by wazuh
+          sudo snap connect wazuh-indexer:mount-observe         # required by wazuh
+          sudo snap connect wazuh-indexer:system-observe        # required by wazuh
+          sudo snap connect wazuh-indexer:sys-fs-cgroup-service # required by wazuh
+          sudo snap connect wazuh-indexer:shmem-perf-analyzer   # required by wazuh
 
           sudo sysctl -w vm.swappiness=0
           sudo sysctl -w vm.max_map_count=262144
           sudo sysctl -w net.ipv4.tcp_retries2=5
-
-      - name: Connect required interfaces for Wazuh Indexer
-        run: |
-          sudo snap connect wazuh-indexer:log-observe
-          sudo snap connect wazuh-indexer:mount-observe
-          sudo snap connect wazuh-indexer:process-control
-          sudo snap connect wazuh-indexer:system-observe
-          sudo snap connect wazuh-indexer:sys-fs-cgroup-service
-          sudo snap connect wazuh-indexer:shmem-perf-analyzer
 
       - name: Setup and Start Wazuh Indexer
         run: |
@@ -107,7 +154,7 @@ jobs:
           sudo snap run wazuh-indexer.security-init --tls-priv-key-admin-pass=admin1234
 
       - name: Download snap file for Wazuh Dashboard
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: wazuh-dashboard_snap_amd64
           path: .
@@ -115,14 +162,13 @@ jobs:
       - name: Install snap file for Wazuh Dashboard
         run: |
           version="$(yq .version < snap/snapcraft.yaml)"
-          
           sudo snap install wazuh-dashboard_${version}_amd64.snap --dangerous --jailmode
 
       - name: Test Wazuh Dashboard
         run: |
           sudo snap start wazuh-dashboard
 
-          # Wait until the service esteblishes
+          # Wait until the service establishes
           service_unavailable=$(curl -i http://localhost:5601 \
             --connect-timeout 5 \
             --retry 5 \
@@ -139,7 +185,7 @@ jobs:
             -H 'Accept: application/json' \
             -H 'Content-Type: application/json' \
             -H 'osd-xsrf:true' \
-            -d '{"username":"kibanaserver","password":"kibanaserver"}' | grep "200 OK") 
+            -d '{"username":"kibanaserver","password":"kibanaserver"}' | grep "200 OK")
 
           if [ ! "$authenticate_ok" ]; then
             echo "ERROR: Authentication failed with correct credentials. Aborting..." >&2
@@ -151,7 +197,7 @@ jobs:
             -H 'Accept: application/json' \
             -H 'Content-Type: application/json' \
             -H 'osd-xsrf:true' \
-            -d '{"username":"admin","password":"test"}' | grep "401 Unauthorized") 
+            -d '{"username":"admin","password":"test"}' | grep "401 Unauthorized")
 
           if [ ! "$wrong_credentials_fail" ]; then
             echo "ERROR: Authentication allowed with wrong credentials. Aborting..." >&2
@@ -170,13 +216,14 @@ jobs:
           URL=http://localhost:9684/metrics
 
           # Wait until the service esteblishes
-          exporter_ok=$(curl -i ${URL} \
+          metrics=$(curl ${URL} \
             --connect-timeout 5 \
             --retry 5 \
             --retry-delay 5 \
             --retry-max-time 60 \
-            --retry-connrefused  | grep "200 OK")
-          if [ ! "$exporter_ok" ]; then
+            --retry-connrefused)
+
+          if [[ "$metrics" ==  *"opensearch_dashboards_up 0.0"* ]]; then
             echo "ERROR: Prometheus exporter unavailable (connected to OSD on HTTP). Aborting..." >&2
             exit 1
           fi
@@ -185,16 +232,17 @@ jobs:
 
           sudo snap set wazuh-dashboard scheme=https
           sudo snap restart wazuh-dashboard
-          sleep 10 
+          sleep 10
 
-          # Wait until the service esteblishes
-          exporter_ok=$(curl -i ${URL} \
+          # Wait until the service establishes
+          metrics=$(curl ${URL} \
             --connect-timeout 5 \
             --retry 5 \
             --retry-delay 5 \
             --retry-max-time 60 \
-            --retry-connrefused  || true )
-          if [ "$exporter_ok" ]; then
+            --retry-connrefused)
+
+           if [[ "$metrics" ==  *"opensearch_dashboards_up 1.0"* ]]; then
             echo "ERROR: Prometheus exporter available when it should be connecting to a non-existent service. Aborting..." >&2
             exit 1
           fi
@@ -206,14 +254,14 @@ jobs:
           sudo snap restart wazuh-dashboard
           sleep 10
 
-          # Wait until the service esteblishes
-          exporter_ok=$(curl -i ${URL} \
+          # Wait until the service establishes
+          metrics=$(curl ${URL} \
             --connect-timeout 5 \
             --retry 5 \
             --retry-delay 5 \
             --retry-max-time 60 \
-            --retry-connrefused  | grep "200 OK")
-          if [ ! "$exporter_ok" ]; then
+            --retry-connrefused)
+          if [[ "$metrics" ==  *"opensearch_dashboards_up 0.0"* ]]; then
             echo "ERROR: Prometheus exporter unavailable (connected to OSD on HTTP). Aborting..." >&2
             exit 1
           fi
