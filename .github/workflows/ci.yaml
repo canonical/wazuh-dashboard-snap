@@ -49,6 +49,7 @@ jobs:
     name: Trivy scan and SBOM Generation
     needs: build
     runs-on: ubuntu-22.04
+    if: false # Disabled for Wazuh, checks are done upstream
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
