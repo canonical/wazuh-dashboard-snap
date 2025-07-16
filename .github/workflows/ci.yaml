@@ -107,6 +107,68 @@ jobs:
           path: "${{ github.workspace }}/dependency-results.sbom.json"
           retention-days: 90
 
+  scan:
+    name: Trivy scan and SBOM Generation
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download snap file for OpenSearch Dashboards
+        uses: actions/download-artifact@v4
+        with:
+          name: wazuh-dashboard_snap_amd64
+          path: .
+
+      - name: Install snap file for Opensearch Dashboards
+        run: |
+          version="$(yq .version < snap/snapcraft.yaml)"
+
+          sudo snap install opensearch-dashboards_${version}_amd64.snap --dangerous --jailmode
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          scan-type: "fs"
+          scan-ref: /snap/opensearch-dashboards/current/usr/share/opensearch-dashboards/
+          format: "sarif"
+          output: "trivy-results.sarif"
+          scanners: "vuln"
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-results.sarif"
+
+      - name: Run Trivy in GitHub SBOM mode and submit results to Dependency Graph
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          scan-type: "fs"
+          scan-ref: /snap/opensearch-dashboards/current/usr/share/opensearch-dashboards/
+          format: "spdx-json"
+          output: "dependency-results.sbom.json"
+          github-pat: ${{ secrets.GITHUB_TOKEN }}
+          severity: "MEDIUM,HIGH,CRITICAL"
+          scanners: "vuln"
+
+      - name: Upload trivy report as a Github artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results.sarif
+          path: "${{ github.workspace }}/trivy-results.sarif"
+          retention-days: 90
+
+      - name: Upload trivy report as a Github artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sbom-report
+          path: "${{ github.workspace }}/dependency-results.sbom.json"
+          retention-days: 90
+
   test:
     name: Test Snap
     runs-on: ubuntu-latest
