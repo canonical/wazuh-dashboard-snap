@@ -42,15 +42,14 @@ jobs:
       - name: Upload built snap job artifact
         uses: actions/upload-artifact@v4
         with:
-          name: opensearch-dashboards_snap_amd64
-          path: "opensearch-dashboards_*.snap"
+          name: wazuh-dashboard_snap_amd64
+          path: "wazuh-dashboard_*.snap"
 
   scan:
     name: Trivy scan and SBOM Generation
     needs: build
     runs-on: ubuntu-22.04
-    permissions:
-      security-events: write
+    if: false # Disabled for Wazuh, checks are done upstream
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -60,7 +59,7 @@ jobs:
       - name: Download snap file for OpenSearch Dashboards
         uses: actions/download-artifact@v4
         with:
-          name: opensearch-dashboards_snap_amd64
+          name: wazuh-dashboard_snap_amd64
           path: .
 
       - name: Install snap file for Opensearch Dashboards
@@ -70,7 +69,7 @@ jobs:
           sudo snap install opensearch-dashboards_${version}_amd64.snap --dangerous --jailmode
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           scan-type: "fs"
           scan-ref: /snap/opensearch-dashboards/current/usr/share/opensearch-dashboards/
@@ -79,13 +78,13 @@ jobs:
           scanners: "vuln"
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: "trivy-results.sarif"
 
       - name: Run Trivy in GitHub SBOM mode and submit results to Dependency Graph
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           scan-type: "fs"
           scan-ref: /snap/opensearch-dashboards/current/usr/share/opensearch-dashboards/
@@ -121,19 +120,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup the required system configs OpenSearch
+      - name: Setup the required system configs Wazuh Indexer
         run: |
-          sudo snap install opensearch --channel=2/edge --revision=76
-          sudo snap connect opensearch:process-control
+          sudo snap install wazuh-indexer --channel=4.11/edge --revision=8
+          sudo snap connect wazuh-indexer:process-control
+          sudo snap connect wazuh-indexer:log-observe           # required by wazuh
+          sudo snap connect wazuh-indexer:mount-observe         # required by wazuh
+          sudo snap connect wazuh-indexer:system-observe        # required by wazuh
+          sudo snap connect wazuh-indexer:sys-fs-cgroup-service # required by wazuh
+          sudo snap connect wazuh-indexer:shmem-perf-analyzer   # required by wazuh
 
           sudo sysctl -w vm.swappiness=0
           sudo sysctl -w vm.max_map_count=262144
           sudo sysctl -w net.ipv4.tcp_retries2=5
 
-      - name: Setup and Start OpenSearch
+      - name: Setup and Start Wazuh Indexer
         run: |
           # create the certificates
-          sudo snap run opensearch.setup \
+          sudo snap run wazuh-indexer.setup \
               --node-name cm0 \
               --node-roles cluster_manager,data \
               --tls-priv-key-root-pass root1234 \
@@ -141,30 +145,29 @@ jobs:
               --tls-priv-key-node-pass node1234 \
               --tls-init-setup yes                 # this creates the root and admin certs as well.
 
-          # start opensearch
-          sudo snap start opensearch.daemon
+          # start wazuh-indexer
+          sudo snap start wazuh-indexer.daemon
 
           # wait a bit for it to fully initialize
           sleep 60s
 
           # create the security index
-          sudo snap run opensearch.security-init --tls-priv-key-admin-pass=admin1234
+          sudo snap run wazuh-indexer.security-init --tls-priv-key-admin-pass=admin1234
 
-      - name: Download snap file for OpenSearch Dashboards
+      - name: Download snap file for Wazuh Dashboard
         uses: actions/download-artifact@v4
         with:
-          name: opensearch-dashboards_snap_amd64
+          name: wazuh-dashboard_snap_amd64
           path: .
 
-      - name: Install snap file for Opensearch Dashboards
+      - name: Install snap file for Wazuh Dashboard
         run: |
           version="$(yq .version < snap/snapcraft.yaml)"
+          sudo snap install wazuh-dashboard_${version}_amd64.snap --dangerous --jailmode
 
-          sudo snap install opensearch-dashboards_${version}_amd64.snap --dangerous --jailmode
-
-      - name: Test Opensearch Dashboards
+      - name: Test Wazuh Dashboard
         run: |
-          sudo snap start opensearch-dashboards
+          sudo snap start wazuh-dashboard
 
           # Wait until the service establishes
           service_unavailable=$(curl -i http://localhost:5601 \
@@ -203,7 +206,7 @@ jobs:
           fi
 
           # Check if logs are collected as expected
-          logfile="/var/snap/opensearch-dashboards/common/var/log/opensearch-dashboards/opensearch_dashboards.log"
+          logfile="/var/snap/wazuh-dashboard/common/var/log/wazuh-dashboard/opensearch_dashboards.log"
           if ! sudo test -s "${logfile}"; then
             echo "ERROR: Logfile unaccessible. Aborting..." >&2
             exit 1
@@ -228,8 +231,8 @@ jobs:
 
           echo "Successfully connected to the Exporter service"
 
-          sudo snap set opensearch-dashboards scheme=https
-          sudo snap restart opensearch-dashboards
+          sudo snap set wazuh-dashboard scheme=https
+          sudo snap restart wazuh-dashboard
           sleep 10
 
           # Wait until the service establishes
@@ -247,9 +250,9 @@ jobs:
 
           echo "Exporter was down when it was supposed to be"
 
-          # Wrong setting defaults to HTTP, so the exporter should work
-          sudo snap set opensearch-dashboards scheme=httpblabla
-          sudo snap restart opensearch-dashboards
+          # Wrong setting defaults to HTTP
+          sudo snap set wazuh-dashboard scheme=httpblabla
+          sudo snap restart wazuh-dashboard
           sleep 10
 
           # Wait until the service establishes
@@ -265,10 +268,9 @@ jobs:
           fi
 
           echo "Snap defaults correctly applied as Exporter settings"
-
       - name: Test Logs slot
         run: |
-          logs_slot_avail=$(sudo snap connections opensearch-dashboards | grep opensearch-dashboards:logs)
+          logs_slot_avail=$(sudo snap connections wazuh-dashboard | grep wazuh-dashboard:logs)
 
           if [ ! "$logs_slot_avail" ]; then
             echo "ERROR: Logs slot is not available. Aborting..." >&2
