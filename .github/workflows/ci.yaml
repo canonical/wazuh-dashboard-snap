@@ -7,6 +7,9 @@ concurrency:
 on:
   workflow_call:
   pull_request:
+  push:
+    branches:
+      - "sync/**"
 
 jobs:
   build:
@@ -122,7 +125,7 @@ jobs:
 
       - name: Setup the required system configs Wazuh Indexer
         run: |
-          sudo snap install wazuh-indexer --channel=4.11/edge --revision=8
+          sudo snap install wazuh-indexer --channel=4.14/edge
           sudo snap connect wazuh-indexer:process-control
           sudo snap connect wazuh-indexer:log-observe           # required by wazuh
           sudo snap connect wazuh-indexer:mount-observe         # required by wazuh
