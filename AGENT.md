@@ -29,7 +29,7 @@ strategy — read it before touching branch history or the packaging pivot it de
 ## Architecture
 
 - **`snap/snapcraft.yaml`** is the source of truth for how the snap is assembled. Key parts:
-  - `wazuh-dashboard` part: pins the exact apt package version (`wazuh-dashboard=4.11.0-1` —
+  - `wazuh-dashboard` part: pins the exact apt package version (`wazuh-dashboard=4.14.7-1` —
     keep this in sync with the top-level `version:` field), then patches the shipped
     `opensearch_dashboards.yml` (comments out all defaults, appends Wazuh-specific opensearch
     connection settings) and rewrites hardcoded plugin constants
