@@ -9,6 +9,8 @@ description: |
     user interface that lets you visualize your Wazuh data and run and scale
     your Wazuh clusters.
 
+    Wazuh 4.11 is no longer supported; Wazuh 4.14 is the supported version.
+
 grade: stable
 
 confinement: strict
