@@ -175,3 +175,8 @@ parts:
       sed -ie "s|WAZUH_DATA_PLUGIN_PLATFORM_BASE_ABSOLUTE_PATH, 'wazuh'|'/var/snap/wazuh-dashboard/current/config', 'wazuh'|" /root/prime/usr/share/wazuh-dashboard/plugins/wazuh/common/constants.js
       sed -ie 's|WAZUH_DATA_PLUGIN_PLATFORM_BASE_ABSOLUTE_PATH,"wazuh"|"/var/snap/wazuh-dashboard/current/config","wazuh"|' /root/prime/usr/share/wazuh-dashboard/plugins/wazuh/target/public/wazuh.plugin.js
       sed -ie 's|WAZUH_DATA_PLUGIN_PLATFORM_BASE_ABSOLUTE_PATH,"wazuh"|"/var/snap/wazuh-dashboard/current/config","wazuh"|' /root/prime/usr/share/wazuh-dashboard/plugins/wazuhCore/target/public/wazuhCore.plugin.js
+      # Wazuh 4.14 moved the Wazuh data path to OpenSearch Dashboards'
+      # path.data (wazuh/wazuh-dashboard-plugins#7586), which resolves to
+      # $SNAP_COMMON in this snap. Keep the charm-managed wazuh.yml under
+      # $SNAP_DATA by preferring the WAZUH_CONFIG_PATH exported above.
+      sed -i "s#this.dataPath = globalConfig.path.data;#this.dataPath = process.env.WAZUH_CONFIG_PATH || globalConfig.path.data;#" /root/prime/usr/share/wazuh-dashboard/plugins/wazuhCore/server/services/data-path.js
