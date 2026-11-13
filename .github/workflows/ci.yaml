@@ -215,6 +215,25 @@ jobs:
             exit 1
           fi
 
+      - name: Test Wazuh data path uses $SNAP_DATA
+        run: |
+          expected="/var/snap/wazuh-dashboard/current/config/wazuh/downloads"
+          unexpected="/var/snap/wazuh-dashboard/common/var/lib/wazuh-dashboard/wazuh/downloads"
+
+          # Wazuh 4.14 creates its data directories under OpenSearch Dashboards'
+          # path.data, which the install hook sets to $SNAP_COMMON. The charm
+          # manages wazuh.yml under $SNAP_DATA/current/config, so the plugin must
+          # keep its data directory there as well.
+          if ! sudo test -d "${expected}"; then
+            echo "ERROR: Wazuh data directory is missing under \$SNAP_DATA. Aborting..." >&2
+            exit 1
+          fi
+
+          if sudo test -d "${unexpected}"; then
+            echo "ERROR: Wazuh data directory found under \$SNAP_COMMON. Aborting..." >&2
+            exit 1
+          fi
+
       - name: Test Prometheus Exporter
         run: |
           URL=http://localhost:9684/metrics
