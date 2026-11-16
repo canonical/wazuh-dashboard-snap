@@ -23,14 +23,18 @@ function add_folder () {
 # (snap_daemon) cannot create the downloads directory.
 function prepare_wazuh_data_dirs () {
     local wazuh_root="${SNAP_COMMON}/var/lib/wazuh-dashboard/wazuh"
+    local folders=("${wazuh_root}" "${wazuh_root}/config" "${wazuh_root}/downloads")
 
-    for folder in "${wazuh_root}" "${wazuh_root}/config" "${wazuh_root}/downloads"; do
+    # Create everything first: after the chown below the confined root may no
+    # longer have write access to the parent.
+    for folder in "${folders[@]}"; do
         if [ ! -d "${folder}" ]; then
             mkdir -p "${folder}"
-            # chmod before chown: after chown the hook no longer owns the path
-            # and strict confinement drops CAP_FOWNER.
             chmod 770 "${folder}"
         fi
+    done
+
+    for folder in "${folders[@]}"; do
         chown snap_daemon:root "${folder}"
     done
 }
