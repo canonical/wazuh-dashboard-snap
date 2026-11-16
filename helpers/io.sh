@@ -25,9 +25,13 @@ function prepare_wazuh_data_dirs () {
     local wazuh_root="${SNAP_COMMON}/var/lib/wazuh-dashboard/wazuh"
 
     for folder in "${wazuh_root}" "${wazuh_root}/config" "${wazuh_root}/downloads"; do
-        mkdir -p "${folder}"
+        if [ ! -d "${folder}" ]; then
+            mkdir -p "${folder}"
+            # chmod before chown: after chown the hook no longer owns the path
+            # and strict confinement drops CAP_FOWNER.
+            chmod 770 "${folder}"
+        fi
         chown snap_daemon:root "${folder}"
-        chmod 770 "${folder}"
     done
 }
 
