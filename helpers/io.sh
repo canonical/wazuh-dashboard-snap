@@ -22,7 +22,7 @@ function add_folder () {
 # starts; without this the Wazuh parent directory is root-owned and the plugin
 # (snap_daemon) cannot create the downloads directory.
 function prepare_wazuh_data_dirs () {
-    local wazuh_root="${OPENSEARCH_DASHBOARDS_VARLIB}/wazuh"
+    local wazuh_root="${SNAP_COMMON}/var/lib/wazuh-dashboard/wazuh"
 
     for folder in "${wazuh_root}" "${wazuh_root}/config" "${wazuh_root}/downloads"; do
         mkdir -p "${folder}"

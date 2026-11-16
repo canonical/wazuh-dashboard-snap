@@ -2,7 +2,7 @@
 
 set -eux
 
-source "${OPS_ROOT}"/helpers/io.sh
+source "${SNAP}/opt/opensearch-dashboards/helpers/io.sh"
 
 # Runs on install, refresh and `snap set`, so it also repairs the ownership of
 # the Wazuh data tree created by an older revision.
