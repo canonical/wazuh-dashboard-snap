@@ -17,6 +17,20 @@ function add_folder () {
     set_access_restrictions "${1}" "${2}"
 }
 
+# Create the Wazuh data tree under OpenSearch Dashboards' path.data with the
+# workload user as owner. The charm writes wazuh.yml as root before the plugin
+# starts; without this the Wazuh parent directory is root-owned and the plugin
+# (snap_daemon) cannot create the downloads directory.
+function prepare_wazuh_data_dirs () {
+    local wazuh_root="${OPENSEARCH_DASHBOARDS_VARLIB}/wazuh"
+
+    for folder in "${wazuh_root}" "${wazuh_root}/config" "${wazuh_root}/downloads"; do
+        mkdir -p "${folder}"
+        chown snap_daemon:root "${folder}"
+        chmod 770 "${folder}"
+    done
+}
+
 function add_file () {
     touch "${1}"
     set_access_restrictions "${1}" "${2}"

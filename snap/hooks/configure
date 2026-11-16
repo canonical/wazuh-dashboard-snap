@@ -2,6 +2,12 @@
 
 set -eux
 
+source "${OPS_ROOT}"/helpers/io.sh
+
+# Runs on install, refresh and `snap set`, so it also repairs the ownership of
+# the Wazuh data tree created by an older revision.
+prepare_wazuh_data_dirs
+
 scheme=$(snapctl get scheme)
 if [ -z "${scheme}" ] || [ "${scheme}" != "https" ]; then
     scheme="http"

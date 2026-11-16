@@ -17,6 +17,8 @@ function create_file_structure () {
     for f in "${folders[@]}"; do
         add_folder "${f}" 770
     done
+
+    prepare_wazuh_data_dirs
 }
 
 
