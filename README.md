@@ -13,6 +13,10 @@
 > [!IMPORTANT]
 > Wazuh 4.11 is no longer supported; Wazuh 4.14 is the supported version.
 
+> [!NOTE]
+> The Wazuh indexer, dashboard and server must run the same Wazuh version, patch included.
+> Upgrade them together: indexer first, then dashboard, then server.
+
 This is the snap package for [Wazuh Dashboard](https://documentation.wazuh.com/current/getting-started/components/wazuh-dashboard.html/), a
 community-driven, Apache 2.0-licensed user interface that lets you visualize your Wazuh data, together
 with running and scaling your Wazuh clusters.
