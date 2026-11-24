@@ -1,7 +1,8 @@
 name: wazuh-dashboard
 base: core24
 
-version: '4.14.7'
+# renovate: depName=wazuh/wazuh-dashboard
+version: '4.14.10'
 
 summary: OpenSearch Dashboards with additional changes for easier use alongside Wazuh.
 description: |
@@ -147,10 +148,12 @@ parts:
       - apt-transport-https
       - gnupg
     stage-packages:
-      - wazuh-dashboard=4.14.7-1
+      # renovate: depName=wazuh/wazuh-dashboard
+      - wazuh-dashboard=4.14.10-1
     override-stage: |
       apt update; apt upgrade -y; apt autoremove --purge -y; apt clean -y
-      apt install -y wazuh-dashboard=4.14.7-1
+      # renovate: depName=wazuh/wazuh-dashboard
+      apt install -y wazuh-dashboard=4.14.10-1
       craftctl default
       sed -i -e 's/^\([^#].*\)/# \1/g' etc/wazuh-dashboard/opensearch_dashboards.yml
       cat <<EOT >> etc/wazuh-dashboard/opensearch_dashboards.yml
